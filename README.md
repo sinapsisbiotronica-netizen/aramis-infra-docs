@@ -1,6 +1,4 @@
-# Aramis-infra-docs
-
-# Aramis: University Project Server
+# Aramis: Project Server
 
 A self-hosted server built for student and faculty projects at Instituto Tecnológico de Hermosillo. It runs workflow automation, a public status page, and a local AI model, built on repurposed workstation hardware with a security-first design.
 
