@@ -72,7 +72,6 @@ All services except Ollama run as Docker containers, with:
 | Access | OpenSSH + Tailscale | Key-only auth, no root login, no passwords |
 | Brute force | Fail2ban | Bans repeated failed logins |
 | Threat intel | CrowdSec | Community blocklists and behavior detection |
-| Visibility | Logwatch | Daily log summaries |
 | Patching | Unattended Upgrades | Automatic security updates |
 | Containers | Socket proxy, network isolation | Limits the blast radius of a compromised container |
 | Auditing | Lynis | Monthly system hardening audit |
