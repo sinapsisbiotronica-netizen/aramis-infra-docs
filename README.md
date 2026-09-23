@@ -1,6 +1,6 @@
-# Aramis: Project Server
+# Aramis
 
-A self-hosted server built for student and faculty projects at Instituto Tecnológico de Hermosillo. It runs workflow automation, a public status page, and a local AI model, built on repurposed workstation hardware with a security-first design.
+A self hosted server built for student and faculty projects at Instituto Tecnológico de Hermosillo. It runs workflow automation, a public status page, and a local AI model, built on repurposed workstation hardware with a security first design.
 
 ## Goals
 
@@ -18,7 +18,7 @@ A self-hosted server built for student and faculty projects at Instituto Tecnol�
 | RAM | 16 GB ECC DDR4 |
 | Storage | 232 GB NVMe |
 | GPU | NVIDIA Quadro K420 (below the minimum for GPU inference, so AI runs on CPU) |
-| OS | Ubuntu LTS |
+| OS | Ubuntu 26.04.1 LTS |
 
 ## Architecture
 
@@ -41,9 +41,9 @@ flowchart LR
 
 **How traffic reaches the server**
 
-- Public traffic never reaches the server directly. Users hit Cloudflare's edge, which forwards requests through an outbound-only tunnel.
+- Public traffic never reaches the server directly. Users hit Cloudflare's edge, which forwards requests through an outbound only tunnel.
 - The server's IP address is never exposed, and no inbound ports are opened on the network.
-- Administrative access goes only over a private Tailscale mesh VPN with key-based authentication.
+- Administrative access goes only over a private Tailscale mesh VPN with key based authentication.
 
 ## Services
 
@@ -69,7 +69,7 @@ All services except Ollama run as Docker containers, with:
 | Transport | Cloudflare Tunnel | Hides the origin, no inbound exposure |
 | TLS | Cloudflare | Full (strict) TLS, HSTS, TLS 1.2 minimum, HTTP/3 |
 | Firewall | UFW | Default deny inbound |
-| Access | OpenSSH + Tailscale | Key-only auth, no root login, no passwords |
+| Access | OpenSSH + Tailscale | Key only auth, no root login, no passwords |
 | Brute force | Fail2ban | Bans repeated failed logins |
 | Threat intel | CrowdSec | Community blocklists and behavior detection |
 | Patching | Unattended Upgrades | Automatic security updates |
@@ -80,7 +80,7 @@ All services except Ollama run as Docker containers, with:
 ## Backups
 
 - **Tooling:** Restic for backups, Rclone as transport to offsite cloud storage
-- **Encrypted** at rest and deduplicated, so the long-term footprint stays small
+- **Encrypted** at rest and deduplicated, so the long term footprint stays small
 - **Scope:** service configurations, application data, and system configuration. Container images are excluded because they can be pulled again.
 - **Schedule:** automated daily backups with nightly pruning
 - **Retention:** 7 daily, 4 weekly, 3 monthly snapshots
