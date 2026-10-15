@@ -14,10 +14,6 @@ The server is a Dell Precision Tower 5810 with an Intel Xeon E5 1620 v4 processo
 
 The server sits on the campus network with a fixed address assigned by the IT department. The network settings live in a configuration file tied to the built in network port, so the address stays the same after every restart.
 
-When the server first arrived on campus, the network sent all traffic through a proxy and blocked direct name lookups. Most things worked through the proxy, but the Cloudflare tunnel did not, because it needs a type of name lookup that a proxy cannot carry. The network administrator was asked for help, and the server was given direct internet access. The old proxy settings are still kept in the configuration files, turned off, so they can be restored quickly if the network policy changes again.
-
-The main lesson from this is simple. On a restricted network, test name resolution on its own, not just web access. A proxy can let web pages through and still leave a service broken.
-
 ## Architecture
 
 ```mermaid
