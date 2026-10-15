@@ -4,7 +4,7 @@ Aramis is a self hosted server built for student and faculty projects at Institu
 
 ## Goals
 
-The project has four goals. It gives students a real platform where they can build and show their automation and AI projects. It keeps the server hidden from the public internet while its services remain reachable. It runs on modest, reused hardware with no licensing cost. And it documents everything so the setup can be maintained and handed over to someone else.
+The project has four goals. It gives students a real platform where they can build and show their automation and AI projects. It keeps the server hidden from the public internet while its services remain reachable. It runs on reused hardware with no licensing cost. And it documents everything so the setup can be maintained and handed over to someone else.
 
 ## Hardware
 
