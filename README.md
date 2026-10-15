@@ -6,7 +6,7 @@ A self hosted server built for student and faculty projects at Instituto Tecnol√
  
 - Give students a real platform to build and showcase automation and AI projects
 - Keep the server off the public internet while its services stay reachable
-- Run on modest, reused hardware with zero licensing cost
+- Run on reused hardware with zero licensing cost
 - Document everything so the setup can be maintained and handed over
 ## Hardware
  
