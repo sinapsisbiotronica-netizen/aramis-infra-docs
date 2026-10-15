@@ -4,7 +4,7 @@ Aramis is a self hosted server built for student and faculty projects at Institu
 
 ## Goals
 
-The project has four goals. It gives students a real platform where they can build and show their automation and AI projects. It keeps the server hidden from the public internet while its services remain reachable. It runs on reused hardware with no licensing cost. And it documents everything so the setup can be maintained and handed over to someone else.
+The project has 3 goals. It gives students a real platform where they can build and show their automation and AI projects. It keeps the server hidden from the public internet while its services remain reachable. It runs on reused hardware with no licensing cost.
 
 ## Hardware
 
@@ -37,11 +37,17 @@ flowchart LR
 
 Public visitors never connect to the server directly. They reach Cloudflare first, and Cloudflare passes their requests through a tunnel that the server opens from the inside. Because of this, the server's address is never exposed and no inbound ports are open on the network.
 
-Administrators connect through a private Tailscale VPN using key based login. Remote login is only allowed on that VPN connection, so it cannot be reached from the campus network, not even from machines in the same room.
+Administrators connect through a private Tailscale VPN using key based login. Remote login is only allowed on that VPN connection, so it cannot be reached from the campus network.
 
 ## Services
 
-n8n runs the workflow automation that students use for their projects, and it is publicly reachable through Cloudflare. Uptime Kuma provides a public status page, also through Cloudflare. PostgreSQL stores the data for n8n and can only be reached from inside the server. Ollama runs the local AI model, so no data ever leaves the server. A Docker socket proxy limits what the containers are allowed to do with Docker itself.
+| Service | Purpose | Exposure |
+|---|---|---|
+| n8n | Workflow automation for student projects | Public, behind Cloudflare |
+| Uptime Kuma | Public status page for services | Public, behind Cloudflare |
+| PostgreSQL | Database for n8n | Internal only |
+| Ollama (Llama 3.2 3B and 1B) | Local AI model, no data leaves the server | Internal only |
+| Docker socket proxy | Limits what containers can do with the Docker API | Internal only |
 
 Every service except Ollama runs in its own Docker container. Each group of services has its own isolated network, every container has limits on how much processor time and memory it can use, and all of them are managed from a single configuration file, which keeps updates predictable. All file paths in that configuration are written out in full, so the services behave the same no matter which user starts them.
 
@@ -49,19 +55,24 @@ Every service except Ollama runs in its own Docker container. Each group of serv
 
 Ollama runs directly on the server rather than in a container, and n8n talks to it over an internal connection. Students use it through a chat workflow inside n8n, so the AI service itself is never exposed to the network.
 
-Two versions of the Llama 3.2 model are available. The larger 3B model gives better answers, and the smaller 1B model responds about three times faster. Since everything runs on the processor, answers are slow and requests are handled one at a time. This works well for learning and demonstrations, but it will not keep up with a full class using it at once, and anyone using it should know that.
+Two versions of the Llama 3.2 model are available. The larger 3B model gives better answers, and the smaller 1B model responds about three times faster. Since everything runs on the processor, answers are slow and requests are handled one at a time. This works well for learning and demonstrations.
 
 ## Security
 
-Several layers protect the server. At the edge, Cloudflare handles attack mitigation, bot protection, and a web application firewall. The Cloudflare tunnel hides the server and removes the need for any open inbound ports. Cloudflare also enforces strict encryption, with HSTS, a minimum of TLS 1.2, and support for HTTP/3.
+| Layer | Tool | Role |
+|---|---|---|
+| Edge | Cloudflare | DDoS mitigation, bot protection, managed WAF |
+| Transport | Cloudflare Tunnel | Hides the origin, no inbound exposure |
+| TLS | Cloudflare | Full (strict) TLS, HSTS, TLS 1.2 minimum, HTTP/3 |
+| Firewall | UFW | Default deny inbound, remote login allowed only over the VPN |
+| Access | OpenSSH + Tailscale | Key only auth, no root login, no passwords |
+| Brute force | Fail2ban | Bans repeated failed logins |
+| Threat intel | CrowdSec | Community blocklists and behavior detection |
+| Patching | Unattended Upgrades | Automatic security updates |
+| Containers | Socket proxy, network isolation | Limits the damage a compromised container can do |
+| Auditing | Lynis | Monthly system hardening audit |
+| Vulnerabilities | Trivy | Monthly container image scanning |
 
-On the server itself, the UFW firewall blocks all inbound traffic by default and only allows remote login over the VPN. Login works with keys only, and both passwords and direct root login are turned off. Fail2ban blocks addresses that fail to log in repeatedly, and CrowdSec adds shared community block lists and behavior detection. Security updates install automatically.
-
-The containers are kept apart from each other, and the socket proxy limits the damage a compromised container could do. Every month, Lynis audits how well the system is hardened and Trivy scans the container images for known vulnerabilities.
-
-### Known risks
-
-n8n is the most exposed part of the system, since it is public and it runs code written by its users. To reduce that risk, only trusted users are allowed to use its code features. Vulnerabilities in the container images are reviewed every month and fixed as soon as updates are available.
 
 ## Backups
 
