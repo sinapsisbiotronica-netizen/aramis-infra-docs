@@ -1,28 +1,23 @@
 # Aramis
- 
-A self hosted server built for student and faculty projects at Instituto Tecnológico de Hermosillo. It runs workflow automation, a public status page, and a local AI model, built on repurposed workstation hardware with a security first design.
- 
+
+Aramis is a self hosted server built for student and faculty projects at Instituto Tecnológico de Hermosillo. It runs workflow automation, a public status page, and a local AI model. It was built on a reused workstation, with security in mind from the start.
+
 ## Goals
- 
-- Give students a real platform to build and showcase automation and AI projects
-- Keep the server off the public internet while its services stay reachable
-- Run on reused hardware with zero licensing cost
-- Document everything so the setup can be maintained and handed over
+
+The project has four goals. It gives students a real platform where they can build and show their automation and AI projects. It keeps the server hidden from the public internet while its services remain reachable. It runs on modest, reused hardware with no licensing cost. And it documents everything so the setup can be maintained and handed over to someone else.
+
 ## Hardware
- 
-| Component | Spec |
-|---|---|
-| Model | Dell Precision Tower 5810 |
-| CPU | Intel Xeon E5-1620 v4 (4 cores, 8 threads) |
-| RAM | 16 GB ECC DDR4 |
-| Storage | 232 GB NVMe |
-| GPU | NVIDIA Quadro K420 (below the minimum for GPU inference, so AI runs on CPU) |
-| OS | Ubuntu 26.04.1 LTS |
- 
+
+The server is a Dell Precision Tower 5810 with an Intel Xeon E5 1620 v4 processor (4 cores and 8 threads), 16 GB of ECC DDR4 memory, and a 232 GB NVMe drive. It runs Ubuntu 26.04.1 LTS. The installed graphics card is an NVIDIA Quadro K420, which is too old for AI workloads, so the AI model runs on the processor instead.
+
 ## Deployment
- 
-The server is deployed on campus on the institutional network with a static address assigned by IT. Network configuration is declared in netplan on the onboard ethernet interface, so addressing survives reboots and does not depend on DHCP.
- 
+
+The server sits on the campus network with a fixed address assigned by the IT department. The network settings live in a configuration file tied to the built in network port, so the address stays the same after every restart.
+
+When the server first arrived on campus, the network sent all traffic through a proxy and blocked direct name lookups. Most things worked through the proxy, but the Cloudflare tunnel did not, because it needs a type of name lookup that a proxy cannot carry. The network administrator was asked for help, and the server was given direct internet access. The old proxy settings are still kept in the configuration files, turned off, so they can be restored quickly if the network policy changes again.
+
+The main lesson from this is simple. On a restricted network, test name resolution on its own, not just web access. A proxy can let web pages through and still leave a service broken.
+
 ## Architecture
 
 ```mermaid
@@ -42,71 +37,46 @@ flowchart LR
     A -->|Encrypted, deduplicated| BK[(Offsite cloud backup)]
 ```
 
-**How traffic reaches the server**
+### How traffic reaches the server
 
-- Public traffic never reaches the server directly. Users hit Cloudflare's edge, which forwards requests through an outbound only tunnel.
-- The server's IP address is never exposed, and no inbound ports are opened on the network.
-- Administrative access goes only over a private Tailscale mesh VPN with key based authentication.
-- SSH is bound to the VPN interface, so port 22 is not reachable from the campus LAN even for machines on the same subnet.
+Public visitors never connect to the server directly. They reach Cloudflare first, and Cloudflare passes their requests through a tunnel that the server opens from the inside. Because of this, the server's address is never exposed and no inbound ports are open on the network.
+
+Administrators connect through a private Tailscale VPN using key based login. Remote login is only allowed on that VPN connection, so it cannot be reached from the campus network, not even from machines in the same room.
 
 ## Services
- 
-| Service | Purpose | Exposure |
-|---|---|---|
-| n8n | Workflow automation for student projects | Public, behind Cloudflare |
-| Uptime Kuma | Public status page for services | Public, behind Cloudflare |
-| PostgreSQL | Database for n8n | Internal only |
-| Ollama (Llama 3.2, 3B and 1B) | Local AI model, no data leaves the server | Internal only |
-| Docker socket proxy | Limits what containers can do with the Docker API | Internal only |
- 
-All services except Ollama run as Docker containers, with:
- 
-- Isolated Docker networks per service group
-- CPU and memory limits on every container
-- A single master compose file for updates
-- Absolute paths in every compose file, so volume mounts resolve identically regardless of which user invokes Docker
 
-### Local AI 
-Ollama runs directly on the host rather than in a container, and is reachable from n8n over the Docker host gateway. Students use it through an n8n chat workflow rather than direct API access, which keeps the inference port off the network entirely.
- 
-Two model sizes are available. The 3B model gives better answers; the 1B model is roughly three times faster. Inference is CPU only because the installed GPU falls below Ollama's compute capability minimum, so throughput sits in the low single digits of tokens per second and requests are served one at a time. This is adequate for learning and demonstration. It is not adequate for a full classroom working concurrently, and that limitation should be stated plainly to anyone using it.
- 
+n8n runs the workflow automation that students use for their projects, and it is publicly reachable through Cloudflare. Uptime Kuma provides a public status page, also through Cloudflare. PostgreSQL stores the data for n8n and can only be reached from inside the server. Ollama runs the local AI model, so no data ever leaves the server. A Docker socket proxy limits what the containers are allowed to do with Docker itself.
+
+Every service except Ollama runs in its own Docker container. Each group of services has its own isolated network, every container has limits on how much processor time and memory it can use, and all of them are managed from a single configuration file, which keeps updates predictable. All file paths in that configuration are written out in full, so the services behave the same no matter which user starts them.
+
+### Local AI
+
+Ollama runs directly on the server rather than in a container, and n8n talks to it over an internal connection. Students use it through a chat workflow inside n8n, so the AI service itself is never exposed to the network.
+
+Two versions of the Llama 3.2 model are available. The larger 3B model gives better answers, and the smaller 1B model responds about three times faster. Since everything runs on the processor, answers are slow and requests are handled one at a time. This works well for learning and demonstrations, but it will not keep up with a full class using it at once, and anyone using it should know that.
+
 ## Security
- 
-| Layer | Tool | Role |
-|---|---|---|
-| Edge | Cloudflare | DDoS mitigation, bot protection, managed WAF |
-| Transport | Cloudflare Tunnel | Hides the origin, no inbound exposure |
-| TLS | Cloudflare | Full (strict) TLS, HSTS, TLS 1.2 minimum, HTTP/3 |
-| Firewall | UFW | Default deny inbound; SSH restricted to the VPN interface |
-| Access | OpenSSH + Tailscale | Key only auth, no root login, no passwords |
-| Brute force | Fail2ban | Bans repeated failed logins |
-| Threat intel | CrowdSec | Community blocklists and behavior detection |
-| Patching | Unattended Upgrades | Automatic security updates |
-| Containers | Socket proxy, network isolation | Limits the blast radius of a compromised container |
-| Auditing | Lynis | Monthly system hardening audit |
-| Vulnerabilities | Trivy | Monthly container image scanning |
- 
-### Known exposure
- 
-n8n is the most exposed component: it is publicly reachable and it executes user supplied code. Code node access is restricted to trusted users as a mitigation. Container image vulnerabilities are tracked monthly and remediated when upstream fixes ship.
- 
+
+Several layers protect the server. At the edge, Cloudflare handles attack mitigation, bot protection, and a web application firewall. The Cloudflare tunnel hides the server and removes the need for any open inbound ports. Cloudflare also enforces strict encryption, with HSTS, a minimum of TLS 1.2, and support for HTTP/3.
+
+On the server itself, the UFW firewall blocks all inbound traffic by default and only allows remote login over the VPN. Login works with keys only, and both passwords and direct root login are turned off. Fail2ban blocks addresses that fail to log in repeatedly, and CrowdSec adds shared community block lists and behavior detection. Security updates install automatically.
+
+The containers are kept apart from each other, and the socket proxy limits the damage a compromised container could do. Every month, Lynis audits how well the system is hardened and Trivy scans the container images for known vulnerabilities.
+
+### Known risks
+
+n8n is the most exposed part of the system, since it is public and it runs code written by its users. To reduce that risk, only trusted users are allowed to use its code features. Vulnerabilities in the container images are reviewed every month and fixed as soon as updates are available.
+
 ## Backups
- 
-- **Tooling:** Restic for backups, Rclone as transport to offsite cloud storage
-- Encrypted at rest and deduplicated, so the long term footprint stays small
-- **Scope:** service configurations, application data, system configuration, and administrative state including credentials for the backup transport itself. A database dump runs before each backup so application data is captured in a restorable form rather than as live database files. Container images are excluded because they can be pulled again.
-- **Schedule:** automated daily backups with nightly pruning
-- **Retention:** 7 daily, 4 weekly, 3 monthly snapshots
-Restoring from backup alone is sufficient to rebuild the service layer on new hardware.
- 
+
+Backups are made with Restic and sent to offsite cloud storage through Rclone. They are encrypted and deduplicated, so they stay small over time.
+
+The backups cover service settings, application data, system configuration, and the credentials needed to run the backups themselves. Before each backup, the n8n database is exported to a file so its data can be restored cleanly. Container images are not included because they can always be downloaded again.
+
+A backup runs every night, followed by a cleanup that keeps seven daily, four weekly, and three monthly copies. With these backups alone, the services can be rebuilt on new hardware.
+
 ## Operations
- 
-A monthly maintenance cycle covers:
- 
-- Vulnerability scanning of every running container image
-- Image updates, then cleanup of unused images
-- A system hardening audit, tracked against a target score
-- A review of threat detection metrics
-- Backup verification
-A set of health check scripts covers containers, system services, public reachability, backup transport, and disk and memory headroom. A companion connectivity script verifies every external dependency the server relies on, which makes network policy changes immediately visible rather than surfacing later as a silent failure.
+
+Once a month, the server goes through a maintenance routine. Every container image is scanned for vulnerabilities, images are updated and old ones are removed, the hardening audit is run and compared against a target score, the threat detection numbers are reviewed, and the backups are checked.
+
+A set of health check scripts reports on the containers, system services, public access, the backup connection, and available disk space and memory. A separate connectivity script checks every outside service the server depends on, so any change in the network policy shows up right away instead of breaking something quietly.
